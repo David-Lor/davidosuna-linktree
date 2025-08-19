@@ -1,10 +1,4 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
-name: Deploy Jekyll site to Pages
+name: Build Jekyll site
 
 on:
   # Runs on pushes targeting the default branch
@@ -28,6 +22,7 @@ concurrency:
 
 env:
   SRC_PATH: "src"
+  DST_PATH: "docs"
 
 jobs:
   # Build job
@@ -48,23 +43,13 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Build with Jekyll
         working-directory: ${{ env.SRC_PATH }}
-        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
-        # Outputs to the './_site' directory by default
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --destination ../${{ env.DST_PATH }}
         env:
           JEKYLL_ENV: production
-      - name: Upload artifact        
-        uses: actions/upload-pages-artifact@v4.0.0
+      - name: Commit built page
+        id: commit
+        uses: EndBug/add-and-commit@v9
         with:
-          path: ${{ env.SRC_PATH }}/_site
-
-  # Deployment job
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          add: "${{ env.DST_PATH }}/*"
+          push: true
+          message: Update built site
