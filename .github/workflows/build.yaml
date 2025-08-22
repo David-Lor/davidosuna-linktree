@@ -1,13 +1,27 @@
-name: Build Jekyll site
+name: Build & Publish site
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to production?"
+        type: boolean
+        default: false
+      sync-dev:
+        description: "Sync to dev repo?"
+        type: boolean
+        default: false
   push:
+    branches:
+      - "main"
     paths:
       - "src/**"
+      - ".github/workflows/build.yaml"
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -17,20 +31,31 @@ concurrency:
 
 env:
   SRC_PATH: "src"
-  DST_PATH: "docs"
+  DST_PATH: "/tmp/output"
   PRO_BRANCH: "main"
+  PRO_REPO: "${{ github.repository }}"
   DEV_REPO: "${{ github.repository_owner }}/davidosuna-linktree-dev"
+  DEV_REPO_WORKFLOW: "Sync dev from upstream repository"
+  DEV_REPO_REF: "refs/heads/main"
+  RUBY_VERSION: "3.1"
+  ARTIFACT_NAME_PRO: "site"
+  ARTIFACT_NAME_DEV: "site-dev"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.upload-artifact.outputs.artifact_id }}
+      artifact-name: ${{ steps.output-variables.outputs.artifact-name }}
+      is-pro: ${{ steps.output-variables.outputs.is-pro }}
+      is-dev: ${{ steps.output-variables.outputs.is-dev }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1.255.0
         with:
-          ruby-version: '3.1' # Not needed with a .ruby-version file
+          ruby-version: "${{ env.RUBY_VERSION }}"
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
           cache-version: 0 # Increment this number if you need to re-download cached gems
           working-directory: ${{ env.SRC_PATH }}
@@ -39,38 +64,52 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Build with Jekyll
         working-directory: ${{ env.SRC_PATH }}
-        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --destination ../${{ env.DST_PATH }}
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --destination ${{ env.DST_PATH }}
         env:
           JEKYLL_ENV: production
-      - name: Commit built page
-        uses: EndBug/add-and-commit@v9
+      - name: Set PRO variables
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.deploy == 'true'
+        run: |
+          echo "ARTIFACT_NAME=${{ env.ARTIFACT_NAME_PRO }}" >> $GITHUB_ENV
+          echo "IS_PRO=true" >> $GITHUB_ENV
+      - name: Set DEV variables
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event.inputs.sync-dev == 'true'
+        run: |
+          echo "ARTIFACT_NAME=${{ env.ARTIFACT_NAME_DEV }}" >> $GITHUB_ENV
+          echo "IS_DEV=true" >> $GITHUB_ENV
+      - name: Set output variables
+        id: output-variables
+        run: |
+          echo "is-pro=${{ env.IS_PRO }}" >> $GITHUB_OUTPUT
+          echo "is-dev=${{ env.IS_DEV }}" >> $GITHUB_OUTPUT
+          echo "artifact-name=${{ env.ARTIFACT_NAME }}" >> $GITHUB_OUTPUT
+      - name: Upload artifact
+        id: upload-artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          add: "${{ env.DST_PATH }}/*"
-          push: true
-          message: Update built site
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.DST_PATH }}
 
-  push-dev:
+  deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref != 'refs/heads/${{ env.PRO_BRANCH }}'
-    env:
-      PRO_REPO_PATH: "main"
-      DEV_REPO_PATH: "dev"
+    if: ${{ needs.build.outputs.is-pro == 'true' }}
     steps:
-      - name: Checkout PRO repo
-        uses: actions/checkout@v5
+      - name: Deploy page
+        uses: actions/deploy-pages@v4
         with:
-          path: ${{ env.PRO_REPO_PATH }}
-      - name: Checkout DEV repo
-        uses: actions/checkout@v5
+          artifact_name: ${{ needs.build.outputs.artifact-name }}
+
+  sync-dev:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ needs.build.outputs.is-dev == 'true' }}
+    steps:
+      - name: Trigger workflow on dev repo
+        uses: benc-uk/workflow-dispatch@v1
         with:
-          repository: ${{ env.DEV_REPO }}
-          path: ${{ env.DEV_REPO_PATH }}
-      - name: Copy PRO sources to DEV repo
-        run: rm * && cp -r ${{ env.PRO_REPO_PATH }}/${{ env.DST_PATH }}/* ${{ env.DEV_REPO_PATH }}
-      - name: Commit built page
-        uses: EndBug/add-and-commit@v9
-        with:
-          cwd: ${{ env.DEV_REPO_PATH }}
-          push: true
-          message: Update built site (DEV)
+          repo: ${{ env.DEV_REPO }}
+          ref: ${{ env.DEV_REPO_REF }}
+          workflow: ${{ env.DEV_REPO_WORKFLOW }}
+          inputs: '{"artifact-repository": "${{ env.PRO_REPO }}", "artifact-id": "${{ needs.build.outputs.artifact-id }}", "artifact-run-id": "${{ github.run_id }}"}'
+          token: ${{ secrets.SYNC_DEV_TOKEN }}  # Fine-Grained PAT, dev repository, Actions=RW
