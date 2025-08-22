@@ -16,6 +16,7 @@ on:
       - "main"
     paths:
       - "src/**"
+      - ".github/workflows/build.yaml"
 
 permissions:
   contents: read
@@ -32,13 +33,22 @@ env:
   SRC_PATH: "src"
   DST_PATH: "/tmp/output"
   PRO_BRANCH: "main"
+  PRO_REPO: "${{ github.repository }}"
   DEV_REPO: "${{ github.repository_owner }}/davidosuna-linktree-dev"
+  DEV_REPO_WORKFLOW: "Sync dev from upstream repository"
+  DEV_REPO_REF: "refs/heads/main"
   RUBY_VERSION: "3.1"
-  ARTIFACT_NAME: "site"
+  ARTIFACT_NAME_PRO: "site"
+  ARTIFACT_NAME_DEV: "site-dev"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.upload-artifact.outputs.artifact_id }}
+      artifact-name: ${{ steps.output-variables.outputs.artifact-name }}
+      is-pro: ${{ steps.output-variables.outputs.is-pro }}
+      is-dev: ${{ steps.output-variables.outputs.is-dev }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -57,7 +67,24 @@ jobs:
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --destination ${{ env.DST_PATH }}
         env:
           JEKYLL_ENV: production
+      - name: Set PRO variables
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.deploy == 'true'
+        run: |
+          echo "ARTIFACT_NAME=${{ env.ARTIFACT_NAME_PRO }}" >> $GITHUB_ENV
+          echo "IS_PRO=true" >> $GITHUB_ENV
+      - name: Set DEV variables
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event.inputs.sync-dev == 'true'
+        run: |
+          echo "ARTIFACT_NAME=${{ env.ARTIFACT_NAME_DEV }}" >> $GITHUB_ENV
+          echo "IS_DEV=true" >> $GITHUB_ENV
+      - name: Set output variables
+        id: output-variables
+        run: |
+          echo "is-pro=${{ env.IS_PRO }}" >> $GITHUB_OUTPUT
+          echo "is-dev=${{ env.IS_DEV }}" >> $GITHUB_OUTPUT
+          echo "artifact-name=${{ env.ARTIFACT_NAME }}" >> $GITHUB_OUTPUT
       - name: Upload artifact
+        id: upload-artifact
         uses: actions/upload-pages-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -66,9 +93,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.deploy == 'true'
+    if: ${{ needs.build.outputs.is-pro == 'true' }}
     steps:
       - name: Deploy page
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: ${{ env.ARTIFACT_NAME }}
+          artifact_name: ${{ needs.build.outputs.artifact-name }}
+
+  sync-dev:
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ needs.build.outputs.is-dev == 'true' }}
+    steps:
+      - name: Trigger workflow on dev repo
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          repo: ${{ env.DEV_REPO }}
+          ref: ${{ env.DEV_REPO_REF }}
+          workflow: ${{ env.DEV_REPO_WORKFLOW }}
+          inputs: '{"artifact-repository": "${{ env.PRO_REPO }}", "artifact-id": "${{ needs.build.outputs.artifact-id }}", "artifact-run-id": "${{ github.run_id }}"}'
+          token: ${{ secrets.SYNC_DEV_TOKEN }}  # Fine-Grained PAT, dev repository, Actions=RW
