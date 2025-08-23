@@ -3,7 +3,6 @@ theme: linkhub-jekyll-theme
 
 # Site Configuration
 name: David Osuna  # Name of your website
-tagline: Links  # Set your preferred page title
 description: ...
 favicon:
   path: assets/images/favicon.png
