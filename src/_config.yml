@@ -10,12 +10,6 @@ favicon:
 logo: assets/images/avatar.jpg
 url: https://www.davidosuna.eu
 locale: es_ES
-image:
-  path: assets/images/example.jpg # Used for SEO (og:image, twitter:image)
-  type: jpeg # File format of image.
-  height: 100 # Pixels
-  width: 100
-  alt: logo
 
 # Verified Badge Configuration
 badge:
