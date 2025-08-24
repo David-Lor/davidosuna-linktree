@@ -1,5 +1,6 @@
 fixed-button-width: false # Set to true/false
 icon-position: left # Set to left/right
+# Icons: https://icon-sets.iconify.design
 buttons:
   - category: Main
     items:
@@ -8,9 +9,10 @@ buttons:
       icon: ri:instagram-fill
     - title: GitHub
       url: https://www.github.com/David-Lor
+      icon: ri:github-fill
     - title: YouTube (Hurdy-Gurdy)
       url: https://www.youtube.com/@zanfoniasdavid
       icon: ri:youtube-fill
     - title: YouTube (Videogames)
       url: https://www.youtube.com/@EnforcerZhukov
-      icon: ri:youtube-fill
+      icon: ri:gamepad-fill
