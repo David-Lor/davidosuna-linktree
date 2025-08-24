@@ -1,10 +1,14 @@
-- name: 📸Instagram
+- name: 📸Some photos @ Instagram
   items:
     - url: https://www.instagram.com/davidosuna.eu/p/DNeNvVNM5HN/
       image: assets/images/instagram/1.jpg
-    - url: https://www.instagram.com/davidosuna.eu/p/DMqizKTs3oz/
-      image: assets/images/instagram/2.jpg
     - url: https://www.instagram.com/davidosuna.eu/p/DLzRSIWM9Yz/
+      image: assets/images/instagram/2.jpg
+    - url: https://www.instagram.com/davidosuna.eu/p/DBCfZmPiKuX/
       image: assets/images/instagram/3.jpg
-    - url: https://www.instagram.com/davidosuna.eu/p/DKUAjGxMpiU/
+    - url: https://www.instagram.com/davidosuna.eu/p/DMqizKTs3oz/
       image: assets/images/instagram/4.jpg
+    - url: https://www.instagram.com/davidosuna.eu/p/DCnDn7HCbu-/
+      image: assets/images/instagram/5.jpg
+    - url: https://www.instagram.com/davidosuna.eu/p/DKUAjGxMpiU/
+      image: assets/images/instagram/6.jpg
