@@ -3,7 +3,7 @@ theme: linkhub-jekyll-theme
 
 # Site Configuration
 name: David Osuna  # Name of your website
-description: ...
+description: ""
 favicon:
   path: assets/images/favicon.png
   type: png # File format of image. Change according to your image. Supported types: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types
