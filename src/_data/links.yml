@@ -10,9 +10,3 @@ buttons:
     - title: GitHub
       url: https://www.github.com/David-Lor
       icon: ri:github-fill
-    - title: YouTube (Hurdy-Gurdy)
-      url: https://www.youtube.com/@zanfoniasdavid
-      icon: ri:youtube-fill
-    - title: YouTube (Videogames)
-      url: https://www.youtube.com/@EnforcerZhukov
-      icon: ri:gamepad-fill
